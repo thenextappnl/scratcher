@@ -37,7 +37,7 @@ class Scratcher extends StatefulWidget {
     Key? key,
     required this.child,
     this.enabled = true,
-    this.canScratchWithMouseHover,
+    this.canScratchWithMouseHover = false,
     this.threshold,
     this.brushSize = 25,
     this.accuracy = ScratchAccuracy.high,
