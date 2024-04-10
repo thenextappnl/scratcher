@@ -37,6 +37,7 @@ class Scratcher extends StatefulWidget {
     Key? key,
     required this.child,
     this.enabled = true,
+    this.canScratchWithMouseHover,
     this.threshold,
     this.brushSize = 25,
     this.accuracy = ScratchAccuracy.high,
@@ -55,6 +56,9 @@ class Scratcher extends StatefulWidget {
 
   /// Whether new scratches can be applied
   final bool enabled;
+
+  /// Whether new scratches appear when a mouse is hovered on top of the image
+  final bool canScratchWithMouseHover;
 
   /// Percentage level of scratch area which should be revealed to complete.
   final double? threshold;
@@ -132,9 +136,8 @@ class ScratcherState extends State<Scratcher> {
       future: _imageLoader,
       builder: (BuildContext context, AsyncSnapshot<ui.Image?> snapshot) {
         if (snapshot.connectionState != ConnectionState.waiting) {
-          return GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onPanStart: canScratch
+          return MouseRegion(
+            onEnter: canScratch && widget.canScratchWithMouseHover
                 ? (details) {
                     widget.onScratchStart?.call();
                     if (widget.enabled) {
@@ -142,49 +145,76 @@ class ScratcherState extends State<Scratcher> {
                     }
                   }
                 : null,
-            onPanUpdate: canScratch
+            onHover: canScratch && widget.canScratchWithMouseHover
                 ? (details) {
-                    widget.onScratchUpdate?.call();
-                    if (widget.enabled) {
-                      _addPoint(details.localPosition);
-                    }
+                  widget.onScratchUpdate?.call();
+                  if (widget.enabled) {
+                    _addPoint(details.localPosition);
                   }
+                }
                 : null,
-            onPanEnd: canScratch
+            onExit: canScratch && widget.canScratchWithMouseHover
                 ? (details) {
-                    widget.onScratchEnd?.call();
-                    if (widget.enabled) {
-                      setState(() => points.add(null));
-                    }
+                  widget.onScratchEnd?.call();
+                  if (widget.enabled) {
+                    setState(() => points.add(null));
                   }
+                }
                 : null,
-            child: AnimatedSwitcher(
-              duration: transitionDuration ?? Duration.zero,
-              child: isFinished
-                  ? widget.child
-                  : CustomPaint(
-                      foregroundPainter: ScratchPainter(
-                        image: snapshot.data,
-                        imageFit: widget.image == null
-                            ? null
-                            : widget.image!.fit ?? BoxFit.cover,
-                        points: points,
-                        color: widget.color,
-                        onDraw: (size) {
-                          if (_lastKnownSize == null) {
-                            _setCheckpoints(size);
-                          } else if (_lastKnownSize != size &&
-                              widget.rebuildOnResize) {
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              reset();
-                            });
-                          }
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onPanStart: canScratch
+                  ? (details) {
+                      widget.onScratchStart?.call();
+                      if (widget.enabled) {
+                        _addPoint(details.localPosition);
+                      }
+                    }
+                  : null,
+              onPanUpdate: canScratch
+                  ? (details) {
+                      widget.onScratchUpdate?.call();
+                      if (widget.enabled) {
+                        _addPoint(details.localPosition);
+                      }
+                    }
+                  : null,
+              onPanEnd: canScratch
+                  ? (details) {
+                      widget.onScratchEnd?.call();
+                      if (widget.enabled) {
+                        setState(() => points.add(null));
+                      }
+                    }
+                  : null,
+              child: AnimatedSwitcher(
+                duration: transitionDuration ?? Duration.zero,
+                child: isFinished
+                    ? widget.child
+                    : CustomPaint(
+                        foregroundPainter: ScratchPainter(
+                          image: snapshot.data,
+                          imageFit: widget.image == null
+                              ? null
+                              : widget.image!.fit ?? BoxFit.cover,
+                          points: points,
+                          color: widget.color,
+                          onDraw: (size) {
+                            if (_lastKnownSize == null) {
+                              _setCheckpoints(size);
+                            } else if (_lastKnownSize != size &&
+                                widget.rebuildOnResize) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                reset();
+                              });
+                            }
 
-                          _lastKnownSize = size;
-                        },
+                            _lastKnownSize = size;
+                          },
+                        ),
+                        child: widget.child,
                       ),
-                      child: widget.child,
-                    ),
+              ),
             ),
           );
         }
